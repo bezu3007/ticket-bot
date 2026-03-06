@@ -6,7 +6,7 @@ import datetime
 TOKEN = "8768265670:AAE9lLWyJXUuOyoYA-BkLaQ_hisE4mRa_10" 
 
 # ⚠️ REPLACE THIS WITH YOUR ACTUAL GROUP CHAT ID (e.g., -100123456789)
-GROUP_CHAT_ID = 0 
+GROUP_CHAT_ID =  -5030381811
 
 people = [
     "Abrham",
@@ -34,7 +34,7 @@ async def today(update: Update, context: ContextTypes.DEFAULT_TYPE):
     payer = get_today_payer()
     chat_id = update.effective_chat.id
     await update.message.reply_text(
-        f"Today's ticket payer: {payer}\nThis group ID is: {chat_id}"
+        f"Today's ticket payer: {payer}\n"
     )
 
 async def send_reminder(context: ContextTypes.DEFAULT_TYPE):
