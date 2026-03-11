@@ -1,63 +1,108 @@
+import logging
+from datetime import datetime
+import asyncio
+
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, JobQueue
-import datetime
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from apscheduler.schedulers.background import BackgroundScheduler
 
-# ⚠️ REPLACE THIS WITH YOUR REAL TOKEN
-TOKEN = "8768265670:AAE9lLWyJXUuOyoYA-BkLaQ_hisE4mRa_10" 
+from telegram.ext import CommandHandler
 
-# ⚠️ REPLACE THIS WITH YOUR ACTUAL GROUP CHAT ID (e.g., -100123456789)
-GROUP_CHAT_ID =  -5030381811
+# Temporary command to get chat ID
+# async def chat_id(update, context):
+#     chat = update.effective_chat
+#     await update.message.reply_text(f"Chat ID: {chat.id}")
 
-people = [
-    "Abrham",
-    "Abu",
-    "Hilina",
-    "Bisrat",
-    "Bisrat T",
-    "Nafyad",
-    "Bezawit"
+BOT_TOKEN = "8736919763:AAF8S6nsVBE_sDRd0JgF-iiMNB2XvTyVFNw"
+GROUP_CHAT_ID = "-1003710817280"
+
+members = [
+    {"name": "Abu", "username": "abubrhanj"},
+    {"name": "Abrsh", "username": "abrsha1"},
+    {"name": "Bisrat", "username": "Bbubbles0"},
+    {"name": "Hilina", "username": "Hillulu"},
+    {"name": "Nafyad", "username": "CarlJohonson"},
+    {"name": "Bisrat", "username": "Bisrate_melak"},
+    {"name": "Beza", "username": "Bezu3007"},
 ]
 
-def get_today_payer():
-    today = datetime.date.today()
-    start = datetime.date(2024, 1, 1)  
-    diff = (today - start).days
-    index = diff % len(people)
-    return people[index]
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO
+)
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "Ticket Bot Active 🎟️\nUse /today to see who pays today."
-    )
+def get_today_payer():
+    today = datetime.today().weekday()
+
+    if today >= 5:
+        return None
+
+    index = today % len(members)
+    return members[index]
 
 async def today(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
     payer = get_today_payer()
-    chat_id = update.effective_chat.id
+
+    if payer is None:
+        await update.message.reply_text("No lunch today (Weekend 🎉)")
+        return
+
     await update.message.reply_text(
-        f"Today's ticket payer: {payer}\n"
+        f"🍽 Today's ticket payer: @{payer['username']} ({payer['name']})"
     )
 
+async def week(update, context):
+    days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+    message = "📅 Lunch Schedule This Week:\n\n"
+
+    for i, day in enumerate(days):
+        index = i % len(members)
+        member = members[index]
+        message += f"{day} - @{member['username']} ({member['name']})\n"
+
+    await update.message.reply_text(message)
+
 async def send_reminder(context: ContextTypes.DEFAULT_TYPE):
+
     payer = get_today_payer()
-    try:
-        await context.application.bot.send_message(
-            chat_id=GROUP_CHAT_ID,
-            text=f"Reminder 🚨\nToday's ticket payer is: {payer}"
-        )
-    except Exception as e:
-        print(f"Failed to send reminder: {e}")
 
-# Build the application
-app = ApplicationBuilder().token(TOKEN).build()
+    if payer is None:
+        return
 
-# Add command handlers
-app.add_handler(CommandHandler("start", start))
-app.add_handler(CommandHandler("today", today))
+    await context.bot.send_message(
+        chat_id=GROUP_CHAT_ID,
+        text=f"🍽 Lunch ticket today: @{payer['username']} ({payer['name']})"
+    )
 
-# Add daily job (8:00 AM)
-app.job_queue.run_daily(send_reminder, time=datetime.time(8, 0))
 
-print("Bot is running...")
+def main():
 
-# Run polling directly (no asyncio.run needed)
-app.run_polling()
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
+
+    # app.add_handler(CommandHandler("id", chat_id))
+
+    app.add_handler(CommandHandler("today", today))
+
+    app.add_handler(CommandHandler("week", week))
+
+    scheduler = BackgroundScheduler()
+
+    scheduler.add_job(
+        send_reminder,
+        "cron",
+        day_of_week="mon-fri",
+        hour=11,
+        minute=30,
+        args=[app]
+    )
+
+    scheduler.start()
+
+    print("Bot is running...")
+
+    app.run_polling()
+
+
+if __name__ == "__main__":
+    main()
