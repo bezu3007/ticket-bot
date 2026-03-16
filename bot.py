@@ -40,9 +40,28 @@ def get_today_payer():
     index = today % len(members)
     return members[index]
 
-async def today(update: Update, context: ContextTypes.DEFAULT_TYPE):
+from datetime import datetime
 
-    payer = get_today_payer()
+def get_payer_for_day(day_offset=0):
+    today = datetime.today()
+
+    # weekday: 0=Mon, 4=Fri
+    weekday = today.weekday() + day_offset
+
+    if weekday >= 5:
+        return None
+
+    week_number = today.isocalendar()[1]
+
+    start_index = week_number % len(members)
+
+    index = (start_index + weekday) % len(members)
+
+    return members[index]
+
+async def today(update, context):
+
+    payer = get_payer_for_day(0)
 
     if payer is None:
         await update.message.reply_text("No lunch today (Weekend 🎉)")
@@ -52,14 +71,40 @@ async def today(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"🍽 Today's ticket payer: @{payer['username']} ({payer['name']})"
     )
 
+async def next_payer(update, context):
+
+    payer = get_payer_for_day(1)
+
+    if payer is None:
+        await update.message.reply_text("Tomorrow is weekend 🎉")
+        return
+
+    await update.message.reply_text(
+        f"➡️ Tomorrow's ticket payer: @{payer['username']} ({payer['name']})"
+    )
+
+
+from datetime import datetime, timedelta
+
 async def week(update, context):
+
+    today = datetime.today()
+
+    # find Monday of this week
+    monday = today - timedelta(days=today.weekday())
+
     days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+
     message = "📅 Lunch Schedule This Week:\n\n"
 
     for i, day in enumerate(days):
-        index = i % len(members)
-        member = members[index]
-        message += f"{day} - @{member['username']} ({member['name']})\n"
+
+        payer = get_payer_for_day(i - today.weekday())
+
+        if payer is None:
+            continue
+
+        message += f"{day} - @{payer['username']} ({payer['name']})\n"
 
     await update.message.reply_text(message)
 
@@ -83,6 +128,7 @@ def main():
     # app.add_handler(CommandHandler("id", chat_id))
 
     app.add_handler(CommandHandler("today", today))
+    app.add_handler(CommandHandler("next", next_payer))
 
     app.add_handler(CommandHandler("week", week))
 
